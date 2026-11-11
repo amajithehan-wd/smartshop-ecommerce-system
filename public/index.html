@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SmartShop System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+  <!-- Navbar -->
+  <nav class="bg-indigo-600 text-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+      <h1 class="text-2xl font-bold tracking-wide">🛍️ SmartShop</h1>
+      <div class="space-x-4 flex items-center">
+        <button onclick="switchView('shop')" class="hover:underline">Shop</button>
+        <button onclick="switchView('orders')" class="hover:underline">Track Orders</button>
+        <button onclick="switchView('admin')" id="adminLink" class="bg-indigo-800 px-3 py-1 rounded text-sm hover:bg-indigo-900">Admin Portal</button>
+        <button onclick="openCart()" class="relative bg-white text-indigo-600 px-4 py-1.5 rounded-full font-bold shadow">
+          🛒 Cart (<span id="cartCount">0</span>)
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <div class="max-w-7xl mx-auto p-6">
+
+    <!-- 1. SHOP VIEW -->
+    <div id="shopView">
+      <!-- Search & Filters -->
+      <div class="flex flex-col md:flex-row gap-4 mb-6">
+        <input type="text" id="searchInput" placeholder="Search products..." onkeyup="loadProducts()" class="border p-2 rounded w-full md:w-1/2">
+        <select id="categoryFilter" onchange="loadProducts()" class="border p-2 rounded w-full md:w-1/4">
+          <option value="All">All Categories</option>
+          <option value="Electronics">Electronics</option>
+          <option value="Fashion">Fashion</option>
+          <option value="Lifestyle">Lifestyle</option>
+        </select>
+      </div>
+
+      <!-- Products Grid -->
+      <div id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+    </div>
+
+    <!-- 2. TRACK ORDERS VIEW -->
+    <div id="ordersView" class="hidden">
+      <h2 class="text-2xl font-bold mb-4">📦 Order Tracking</h2>
+      <div id="ordersList" class="space-y-4"></div>
+    </div>
+
+    <!-- 3. ADMIN PORTAL VIEW -->
+    <div id="adminView" class="hidden">
+      <h2 class="text-2xl font-bold mb-6">📊 Admin Dashboard</h2>
+      
+      <!-- Analytics Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white p-5 rounded-lg shadow border-l-4 border-green-500">
+          <h4 class="text-gray-500 text-sm">Total Revenue</h4>
+          <p id="metricSales" class="text-2xl font-bold">LKR 0.00</p>
+        </div>
+        <div class="bg-white p-5 rounded-lg shadow border-l-4 border-blue-500">
+          <h4 class="text-gray-500 text-sm">Total Orders</h4>
+          <p id="metricOrders" class="text-2xl font-bold">0</p>
+        </div>
+        <div class="bg-white p-5 rounded-lg shadow border-l-4 border-red-500">
+          <h4 class="text-gray-500 text-sm">Low Stock Items (≤5)</h4>
+          <p id="metricLowStock" class="text-2xl font-bold">0</p>
+        </div>
+      </div>
+
+      <!-- Add New Product Form -->
+      <div class="bg-white p-6 rounded-lg shadow mb-8">
+        <h3 class="text-lg font-bold mb-4">➕ Add New Product</h3>
+        <form id="addProductForm" onsubmit="addProduct(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input type="text" id="pName" placeholder="Product Name" required class="border p-2 rounded">
+          <select id="pCategory" required class="border p-2 rounded">
+            <option value="Electronics">Electronics</option>
+            <option value="Fashion">Fashion</option>
+            <option value="Lifestyle">Lifestyle</option>
+          </select>
+          <input type="number" id="pPrice" placeholder="Price (LKR)" required class="border p-2 rounded">
+          <input type="number" id="pStock" placeholder="Initial Stock" required class="border p-2 rounded">
+          <input type="url" id="pImage" placeholder="Image URL (Unsplash link)" required class="border p-2 rounded md:col-span-2">
+          <button type="submit" class="bg-green-600 text-white py-2 rounded font-semibold md:col-span-2 hover:bg-green-700">Add Product</button>
+        </form>
+      </div>
+
+      <!-- Manage Orders Section -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-bold mb-4">Manage Order Statuses</h3>
+        <div id="adminOrdersTable" class="overflow-x-auto"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Cart Modal -->
+  <div id="cartModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center p-4">
+    <div class="bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold">Shopping Cart</h3>
+        <button onclick="closeCart()" class="text-gray-500 font-bold text-lg">&times;</button>
+      </div>
+
+      <div id="cartItemsList" class="space-y-3 mb-4"></div>
+
+      <!-- Coupon -->
+      <div class="flex gap-2 mb-4">
+        <input type="text" id="couponCode" placeholder="Promo code (e.g., NEW10)" class="border p-2 rounded w-full text-sm">
+        <button onclick="applyCoupon()" class="bg-gray-800 text-white px-3 py-1 rounded text-sm">Apply</button>
+      </div>
+
+      <div class="border-t pt-3 mb-4">
+        <div class="flex justify-between font-bold text-lg">
+          <span>Total:</span>
+          <span>LKR <span id="cartTotal">0.00</span></span>
+        </div>
+      </div>
+
+      <!-- Checkout Form -->
+      <form onsubmit="checkout(event)" class="space-y-3">
+        <input type="text" id="cName" placeholder="Your Name" required class="border p-2 rounded w-full text-sm">
+        <input type="text" id="cAddress" placeholder="Delivery Address" required class="border p-2 rounded w-full text-sm">
+        <input type="text" id="cPhone" placeholder="Phone Number" required class="border p-2 rounded w-full text-sm">
+        <button type="submit" class="bg-indigo-600 text-white w-full py-2 rounded font-bold hover:bg-indigo-700">Confirm Order</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let cart = [];
+    let discount = 0;
+
+    // View switcher
+    function switchView(view) {
+      document.getElementById('shopView').classList.add('hidden');
+      document.getElementById('ordersView').classList.add('hidden');
+      document.getElementById('adminView').classList.add('hidden');
+
+      if (view === 'shop') {
+        document.getElementById('shopView').classList.remove('hidden');
+        loadProducts();
+      } else if (view === 'orders') {
+        document.getElementById('ordersView').classList.remove('hidden');
+        loadOrders();
+      } else if (view === 'admin') {
+        document.getElementById('adminView').classList.remove('hidden');
+        loadAdminData();
+      }
+    }
+
+    // Load Products
+    async function loadProducts() {
+      const search = document.getElementById('searchInput').value;
+      const category = document.getElementById('categoryFilter').value;
+      const res = await fetch(`/api/products?search=${search}&category=${category}`);
+      const products = await res.json();
+
+      const grid = document.getElementById('productsGrid');
+      grid.innerHTML = products.map(p => `
+        <div class="bg-white border rounded-lg shadow-sm overflow-hidden flex flex-col justify-between">
+          <img src="${p.image_url}" class="h-44 w-full object-cover">
+          <div class="p-4">
+            <span class="text-xs text-indigo-500 font-semibold uppercase">${p.category}</span>
+            <h4 class="font-bold text-lg mb-1">${p.name}</h4>
+            <p class="text-gray-600 font-medium">LKR ${p.price}</p>
+            <p class="text-xs ${p.stock <= 5 ? 'text-red-500 font-bold' : 'text-gray-500'} mb-4">Stock: ${p.stock}</p>
+            <button onclick="addToCart(${p.id}, '${p.name}', ${p.price}, ${p.stock})" 
+              class="w-full bg-indigo-600 text-white py-1.5 rounded font-semibold text-sm hover:bg-indigo-700 ${p.stock === 0 ? 'opacity-50 cursor-not-allowed' : ''}"
+              ${p.stock === 0 ? 'disabled' : ''}>
+              ${p.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Cart Handlers
+    function addToCart(id, name, price, stock) {
+      const existing = cart.find(item => item.id === id);
+      if (existing) {
+        if (existing.qty < stock) existing.qty++;
+        else alert('No more stock available!');
+      } else {
+        cart.push({ id, name, price, qty: 1, stock });
+      }
+      updateCartUI();
+    }
+
+    function updateCartUI() {
+      document.getElementById('cartCount').innerText = cart.reduce((sum, i) => sum + i.qty, 0);
+      const list = document.getElementById('cartItemsList');
+      list.innerHTML = cart.map(item => `
+        <div class="flex justify-between items-center border-b pb-2">
+          <div>
+            <p class="font-semibold text-sm">${item.name}</p>
+            <p class="text-xs text-gray-500">LKR ${item.price} x ${item.qty}</p>
+          </div>
+          <button onclick="removeFromCart(${item.id})" class="text-red-500 font-bold text-sm">Remove</button>
+        </div>
+      `).join('');
+
+      let subtotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+      let total = subtotal - (subtotal * (discount / 100));
+      document.getElementById('cartTotal').innerText = total.toFixed(2);
+    }
+
+    function removeFromCart(id) {
+      cart = cart.filter(i => i.id !== id);
+      updateCartUI();
+    }
+
+    function openCart() { document.getElementById('cartModal').classList.remove('hidden'); }
+    function closeCart() { document.getElementById('cartModal').classList.add('hidden'); }
+
+    // Coupon logic
+    async function applyCoupon() {
+      const code = document.getElementById('couponCode').value;
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ code })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        discount = data.discount_percentage;
+        alert(`🎉 Coupon applied! ${discount}% OFF`);
+        updateCartUI();
+      } else {
+        alert('❌ Invalid Coupon code!');
+      }
+    }
+
+    // Checkout
+    async function checkout(e) {
+      e.preventDefault();
+      const orderData = {
+        user_name: document.getElementById('cName').value,
+        address: document.getElementById('cAddress').value,
+        phone: document.getElementById('cPhone').value,
+        total_amount: parseFloat(document.getElementById('cartTotal').innerText),
+        cartItems: cart
+      };
+
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(orderData)
+      });
+
+      if (res.ok) {
+        alert('🎉 Order Placed Successfully!');
+        cart = [];
+        updateCartUI();
+        closeCart();
+        switchView('orders');
+      }
+    }
+
+    // Load Orders
+    async function loadOrders() {
+      const res = await fetch('/api/orders');
+      const orders = await res.json();
+      document.getElementById('ordersList').innerHTML = orders.map(o => `
+        <div class="bg-white p-4 rounded shadow flex justify-between items-center">
+          <div>
+            <p class="font-bold">Order #${o.id} - LKR ${o.total_amount}</p>
+            <p class="text-sm text-gray-500">Customer: ${o.user_name} | Phone: ${o.phone}</p>
+            <p class="text-xs text-gray-400">Date: ${new Date(o.created_at).toLocaleString()}</p>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-bold ${
+            o.status === 'Delivered' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+          }">${o.status}</span>
+        </div>
+      `).join('');
+    }
+
+    // Admin Load Data
+    async function loadAdminData() {
+      const resStats = await fetch('/api/admin/analytics');
+      const stats = await resStats.json();
+      document.getElementById('metricSales').innerText = 'LKR ' + Number(stats.totalSales).toLocaleString();
+      document.getElementById('metricOrders').innerText = stats.totalOrders;
+      document.getElementById('metricLowStock').innerText = stats.lowStockCount;
+
+      const resOrders = await fetch('/api/orders');
+      const orders = await resOrders.json();
+      document.getElementById('adminOrdersTable').innerHTML = `
+        <table class="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr class="border-b bg-gray-50"><th class="p-2">ID</th><th class="p-2">Customer</th><th class="p-2">Total</th><th class="p-2">Status</th><th class="p-2">Action</th></tr>
+          </thead>
+          <tbody>
+            ${orders.map(o => `
+              <tr class="border-b">
+                <td class="p-2">#${o.id}</td>
+                <td class="p-2">${o.user_name}</td>
+                <td class="p-2">LKR ${o.total_amount}</td>
+                <td class="p-2 font-bold">${o.status}</td>
+                <td class="p-2">
+                  <select onchange="updateStatus(${o.id}, this.value)" class="border p-1 rounded text-xs">
+                    <option value="Pending" ${o.status==='Pending'?'selected':''}>Pending</option>
+                    <option value="Processing" ${o.status==='Processing'?'selected':''}>Processing</option>
+                    <option value="Shipped" ${o.status==='Shipped'?'selected':''}>Shipped</option>
+                    <option value="Delivered" ${o.status==='Delivered'?'selected':''}>Delivered</option>
+                  </select>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    async function updateStatus(id, status) {
+      await fetch(`/api/orders/${id}/status`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ status })
+      });
+      alert('Status updated!');
+      loadAdminData();
+    }
+
+    async function addProduct(e) {
+      e.preventDefault();
+      const product = {
+        name: document.getElementById('pName').value,
+        category: document.getElementById('pCategory').value,
+        price: document.getElementById('pPrice').value,
+        stock: document.getElementById('pStock').value,
+        image_url: document.getElementById('pImage').value
+      };
+
+      await fetch('/api/products', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(product)
+      });
+
+      alert('Product added successfully!');
+      document.getElementById('addProductForm').reset();
+      loadAdminData();
+    }
+
+    // Init
+    loadProducts();
+  </script>
+</body>
+</html>
